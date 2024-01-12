@@ -1,52 +1,199 @@
-import cv2
-import numpy as np
-from tensorflow.keras.models import load_model
+import random
 
-class CarDamageDetector:
-    def __init__(self, model_path):
-        self.model = load_model(model_path)
 
-    def preprocess_image(self, image_path):
-        # Implement image preprocessing logic (resize, normalization, etc.)
-        # Example: use OpenCV to read and preprocess the image
-        image = cv2.imread(image_path)
-        image = cv2.resize(image, (224, 224))  # Adjust the size according to your model requirements
-        image = image / 255.0  # Normalize pixel values
-
-        return image.reshape(1, 224, 224, 3)
-
-    def predict_damage(self, image_path):
-        preprocessed_image = self.preprocess_image(image_path)
-        prediction = self.model.predict(preprocessed_image)
-
-        # Interpret the prediction based on your model's output
-        # Example: assuming binary classification (damaged or not)
-        damage_probability = prediction[0][0]
-        is_damaged = damage_probability > 0.5
-
-        return is_damaged, damage_probability
-
-class CarDamageReporter:
+class Map():
     def __init__(self):
-        # You can add additional initialization logic here
-        pass
+        self.distance = self.random_spawn_distance()
 
-    def generate_report(self, is_damaged, damage_probability):
-        if is_damaged:
-            report = f"The car is damaged with a probability of {damage_probability:.2%}."
+    def distance_value(self):
+        print(self.distance)
+
+    def random_spawn_distance(self):
+        return random.randint(1, 8)
+
+    def attack_distance_check(self, attack_range):
+        return self.distance <= attack_range
+
+    def random_spawn_distance(self):
+        return random.randint(1, 8)
+
+    def character_move_further(self, character):
+        character_move = random.randrange(0, character.max_speed)
+        self.distance += character_move
+        return character_move
+
+    def character_move_closer(self, character):
+        character_move = 0
+        if self.distance > character.max_speed:
+            character_move = random.randrange(0, (character.max_speed))
+        elif self.distance > 1:
+            character_move = random.randrange(0, self.distance)
+        self.distance -= character_move
+        return character_move
+class Weapon():
+    def __init__(self):
+        self.name = self.weapon_name
+        self.damage = self.base_damage
+        self.range = self.base_range
+
+
+class Sword(Weapon):
+    weapon_name = "Sword"
+    base_damage = [2, 11]
+    base_range = 2
+
+class Axe(Weapon):
+    weapon_name = "Axe"
+    base_damage = [3, 12]
+    base_range = 1
+
+class Bow(Weapon):
+    weapon_name = "Bow"
+    base_damage = [2, 9]
+    base_range = 12
+
+class Dagger(Weapon):
+    weapon_name = "Dagger"
+    base_damage = [2, 7]
+    base_range = 1
+
+
+
+class Entity:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.health = self.base_health
+        self.weapon = self.base_weapon
+        self.damage_range = self.weapon.damage
+        self.attack_range = self.weapon.base_range
+        self.max_speed = self.base_max_speed
+
+    def give_random_damage(self):
+        return random.randrange(self.damage_range[0], self.damage_range[1])
+
+    def take_damage(self, damage):
+        self.health = self.health - damage
+        return self.health
+
+    def is_alive(self) -> bool:
+        return self.health > 1
+
+    def description(self):
+        print(f"Name: {self.name}\nHealth: {self.health}\nWeapon: {self.weapon.name}\nDamage: {self.weapon.damage}\nAttack range: {self.attack_range}, \n")
+
+    def attack_entety(self,target: "Entity", map) -> None:
+        print(f'\n{self.name} attacs {target.name}')
+        if map.attack_distance_check(self.attack_range):
+            damage = self.give_random_damage()
+            target.take_damage(damage)
+            print(f'with damage: {damage}\n{target.name} health: {target.health}')
         else:
-            report = f"The car is not damaged with a probability of {damage_probability:.2%}."
+            print("Miss, too far")
 
-        return report
+    def move_closer(self, map):
+        character_move = map.character_move_closer(self)
+        print(f'\n{self.name} moves on {character_move}\nDistance: {map.distance}')
 
-# Example usage:
-model_path = 'path/to/your/model.h5'
-image_path = 'path/to/your/car_image.jpg'
+    def move_further(self, map):
+        character_move = map.character_move_further(self)
+        print(f'\n{self.name} moves on {character_move}\nDistance: {map.distance}')
 
-damage_detector = CarDamageDetector(model_path)
-is_damaged, damage_probability = damage_detector.predict_damage(image_path)
+class Knight(Entity):
+    base_health = 50
+    base_weapon = Sword()
+    base_max_speed = 5
 
-damage_reporter = CarDamageReporter()
-report = damage_reporter.generate_report(is_damaged, damage_probability)
+class Archer(Entity):
+    base_health = 35
+    base_weapon = Bow()
+    base_max_speed = 7
 
-print(report)
+class Goblin(Entity):
+    base_health = 15
+    base_weapon = Dagger()
+    base_max_speed = 8
+
+class Elf(Entity):
+    base_health = 30
+    base_weapon = Bow()
+    base_max_speed = 9
+
+class Ork(Entity):
+    base_health = 45
+    base_weapon = Axe()
+    base_max_speed = 6
+
+
+
+class Game:
+    def __init__(self):
+        self.playing = True
+
+
+    def create_character(self, name, chosen_class):
+        if chosen_class == "Knight":
+            character = Knight(name)
+        else:
+            character = Archer(name)
+        return character
+
+    def ask_character_name(self):
+        name = input("Lets create a character!\nName:")
+        return name
+    def ask_character_class(self):
+        chosen_class = input(f"Choose your Class Knight or Archer\nClass: ")
+        return chosen_class
+
+    def random_enemy(self):
+        return random.choice([Elf("Elf"), Ork("Ork"), Goblin("Goblin")])
+
+    def ask_what_to_do(self):
+        return input("\nWhat do you want to do:\nAttack, Move closer, Move further\n")
+
+    def character_action(self, what_to_do, character, enemy, map):
+        if what_to_do == "Attack":
+            character.attack_entety(enemy, map)
+        if what_to_do == "Move closer":
+            character.move_closer(map)
+        elif what_to_do == "Move further":
+            character.move_further(map)
+
+    def enemy_action(self, enemy, character, map):
+        if map.attack_distance_check(enemy.attack_range):
+            enemy.attack_entety(character, map)
+        else:
+            enemy.move_closer(map)
+
+    def fighting_process(self, character, enemy, map):
+        counter = 1
+        while character.is_alive() and enemy.is_alive():
+            if counter % 2 != 0:
+                self.character_action(self.ask_what_to_do(), character, enemy, map)
+            else:
+                self.enemy_action(enemy, character, map)
+            counter += 1
+
+    def begin_fight(self, character, enemy) -> None:
+        map = Map()
+        print(f"You are fighting with {enemy.name}\nDistance: {map.distance}\n")
+        character.description()
+        enemy.description()
+        self.fighting_process(character, enemy, map)
+
+    def start_journey(self, character):
+        day = 1
+        while character.is_alive():
+            print(f"\n\nDay {day}:")
+            activity = random.choice(["fight"])
+            if activity == "fight":
+                self.begin_fight(character, self.random_enemy())
+            day += 1
+
+    def start(self):
+        name = self.ask_character_name()
+        chosen_class = self.ask_character_class()
+        character = self.create_character(name, chosen_class)
+        self.start_journey(character)
+
+
+
